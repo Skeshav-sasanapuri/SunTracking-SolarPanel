@@ -16,6 +16,10 @@ latitude = 40.7128  # Longitude and latitude of the location of the house
 longitude = -74.0060
 altitude = 0  # Height above sea level in meters
 timezone = 'America/New_York'  # Time zone of the location of the house
+# Set input Parameters (Need to be calibrated while setting up the system on the house)
+panel_width = 1.0  # panel width in meters in x direction
+panel_height = 2.0  # panel height in meters in y direction
+max_piston_height_m = 0.3048  # 12 inches in meters
 ##########################################################################################
 
 
@@ -44,27 +48,50 @@ sun_vector = np.array([x, y, z])
 
 
 ##########################################################################################
-# Convert the sun position to solar panel tilt
-# Solar panel has 4 adjustable linear actuators/legs. Each leg can be raised or lowered to tilt the panel
-# Set input Parameters (Need to be calibrated while setting up the system on the house)
-panel_width = 1.0  # panel width in meters in x direction
-panel_height = 2.0  # panel height in meters in y direction
-##########################################################################################
-
-
-##########################################################################################
 # let each of the corners be A, B, C, D starting from top left, top right, bottom left, bottom right
 corners = {
-    'A': np.array([-panel_width/2, -panel_height/2]),
-    'B': np.array([panel_width/2, panel_height/2]),
-    'C': np.array([panel_width/2, -panel_height/2]),
-    'D': np.array([-panel_width/2, -panel_height/2])
+    'A': np.array([-panel_width / 2, -panel_height / 2]),
+    'C': np.array([panel_width / 2, -panel_height / 2]),
+    'TopMid': np.array([0.0, panel_height / 2]),
+}
+##########################################################################################
+
+
+##########################################################################################
+# Convert the sun position to solar panel tilt
+# Solar panel has 4 adjustable linear actuators/legs. Each leg can be raised or lowered to tilt the panel
+# get the plane that is normal to the sun vector
+# Assuming we anchor A at 0, we get values for B, C, D
+
+# Project the sun vector onto the panel plane directions
+dz_dx = -sun_vector[0] / -sun_vector[2]  # slope in x
+dz_dy = -sun_vector[1] / sun_vector[2]  # slope in y
+
+# Assume A at height 0 and compute other heights relative to A
+def height(x, y, x0, y0):
+    dx = x - x0
+    dy = y - y0
+    return dz_dx * dx + dz_dy * dy
+
+x0, y0 = corners['A']
+heights_m = {
+    'A': 0.0,
+    'C': height(*corners['C'], x0, y0),
+    'TopMid': height(*corners['TopMid'], x0, y0)
 }
 
+# Normalize heights to keep within piston limits
+raw_vals = np.array(list(heights_m.values()))
+raw_vals -= np.min(raw_vals)  # set minimum to 0
+if np.max(raw_vals) > 0:
+    raw_vals *= max_piston_height_m / np.max(raw_vals)
+else:
+    raw_vals[:] = 0  # if sun is overhead, all same height
 
-##########################################################################################
+# Convert to inches and display
+heights_inches = {name: val / 0.0254 for name, val in zip(heights_m.keys(), raw_vals)}
 
-
-##########################################################################################
-# get the plane that is normal to the sun vector
-
+print(f"Sun Azimuth: {azimuth:.2f}°, Elevation: {elevation:.2f}°")
+print("Piston Heights (in inches):")
+for name, h in heights_inches.items():
+    print(f"  {name}: {h:.2f}\"")
