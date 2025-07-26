@@ -32,9 +32,14 @@ solar_position = site.get_solarposition(date_time)  # Get position of sun for gi
 azimuth = solar_position['azimuth'].values[0]  # Angle of sun from true north in the clockwise direction on the ground
 elevation = solar_position['elevation'].values[0]  # Angle from horizon to the sun
 
-# Convert Sun azimuth and elevation to sun vector
-
-
+# Convert Sun azimuth and elevation to sun vector. We can do this by converting the spherical coordinated to cartesian
+# coordinates
+azimuth_rad = np.deg2rad(azimuth)  # Convert degrees to radians
+elevation_rad = np.deg2rad(elevation)
+x = np.cos(elevation_rad) * np.sin(azimuth_rad)
+y = np.cos(elevation_rad) * np.cos(azimuth_rad)
+z = np.sin(elevation_rad)
+sun_vector = np.array([x, y, z])
 ##########################################################################################
 
 
@@ -58,4 +63,8 @@ corners = {
 
 
 ##########################################################################################
+
+
+##########################################################################################
+# get the plane that is normal to the sun vector
 
